@@ -1,0 +1,8 @@
+<launch>
+    <!-- 启动底层避障与导航黑盒 -->
+    <include file="$(find uav_navigation)/launch/ego_nav.launch" />
+    <node name="mission_state_machine" pkg="your_package" type="mission_state_machine_test" output="screen">
+        <param name="enable_yolo" value="true" />
+        <param name="hover_time"  value="2.0" />
+    </node>
+</launch>

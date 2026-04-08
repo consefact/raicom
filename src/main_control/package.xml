@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>main_control</name>
+  <version>0.1.0</version>
+  <description>main_control part of raicom mission</description>
+  <maintainer email="consefact@foxmail.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>mavros_msgs</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>livox_ros_driver2</build_depend>
+  <build_depend>raicom_vision_laser</build_depend>
+  <exec_depend>raicom_vision_laser</exec_depend>
+  <exec_depend>livox_ros_driver2</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>mavros_msgs</exec_depend>
+</package>
