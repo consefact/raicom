@@ -2,6 +2,8 @@
 #include <ros/ros.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/PositionTarget.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/CommandBool.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -71,6 +73,10 @@ private:
     ros::ServiceClient switch_camera_client_;
     ros::ServiceClient reset_target_client_;
     ros::ServiceClient get_status_client_;
+    // 服务客户端（需添加到 private 成员）
+    ros::ServiceClient set_mode_client_;
+    ros::ServiceClient arming_client_;
+
 
     // ---------- 状态机数据 ----------
     MissionState current_state_;
@@ -279,6 +285,9 @@ void MissionManager::initROSCommunication() {
     switch_camera_client_ = nh_.serviceClient<std_srvs::Empty>("/switch_camera");
     reset_target_client_  = nh_.serviceClient<std_srvs::Empty>("/reset_target");
     get_status_client_    = nh_.serviceClient<std_srvs::Empty>("/get_system_status");
+    // 新增：模式切换和解锁服务客户端
+    set_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
+    arming_client_   = nh_.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
 }
 
 // ============================================================================
@@ -506,26 +515,99 @@ void MissionManager::waitForConnection() {
 
 // 8.1 起飞
 void MissionManager::handleInitTakeoff() {
-    static bool takeoff_cmd_sent = false;
-    if (!takeoff_cmd_sent) {
-        mavros_msgs::PositionTarget sp;
-        sp.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-        sp.type_mask = 0b101111111000;
-        sp.position.x = init_pos_x_;
-        sp.position.y = init_pos_y_;
-        sp.position.z = init_pos_z_ + cfg_.takeoff_height;
-        sp.yaw = init_yaw_;
-        sendSetpoint(sp);
-        takeoff_cmd_sent = true;
-        state_start_time_ = ros::Time::now();
-        ROS_INFO("起飞指令发送，目标高度 %.2f", cfg_.takeoff_height);
+    static int sub_state = 0;               // 0: 准备设定点, 1: 切OFFBOARD, 2: 解锁, 3: 爬升稳定
+    static ros::Time last_request;
+    static int setpoint_count = 0;
+
+    ros::Time now = ros::Time::now();
+    float target_z = init_pos_z_ + cfg_.takeoff_height;
+    float current_z = local_odom_.pose.pose.position.z;
+
+    // 构造设定点消息（位置控制）
+    mavros_msgs::PositionTarget sp;
+    sp.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+    sp.type_mask = 0b101111111000;          // 仅使用位置+偏航
+    sp.position.x = init_pos_x_;
+    sp.position.y = init_pos_y_;
+    sp.position.z = target_z;
+    sp.yaw = init_yaw_;
+
+    // 持续发布设定点（必须高频发布以维持 OFFBOARD）
+    sendSetpoint(sp);
+
+    switch (sub_state) {
+        case 0: // 预发送设定点
+            if (setpoint_count < 100) {
+                setpoint_count++;
+                if (setpoint_count == 100) {
+                    ROS_INFO("已发送100个设定点，准备切换OFFBOARD模式");
+                    sub_state = 1;
+                    last_request = now;
+                }
+            }
+            break;
+
+        case 1: // 请求切换到 OFFBOARD 模式
+            if (current_mav_state_.mode != "OFFBOARD" &&
+                (now - last_request) > ros::Duration(3.0)) {
+                mavros_msgs::SetMode srv;
+                srv.request.custom_mode = "OFFBOARD";
+                if (set_mode_client_.call(srv) && srv.response.mode_sent) {
+                    ROS_INFO("OFFBOARD模式请求成功");
+                    sub_state = 2;
+                    last_request = now;
+                } else {
+                    ROS_WARN("切换OFFBOARD失败，重试中...");
+                    last_request = now;
+                }
+            } else if (current_mav_state_.mode == "OFFBOARD") {
+                // 已经处于 OFFBOARD，直接进入解锁阶段
+                sub_state = 2;
+                last_request = now;
+            }
+            break;
+
+        case 2: // 请求解锁
+            if (!current_mav_state_.armed &&
+                (now - last_request) > ros::Duration(3.0)) {
+                mavros_msgs::CommandBool srv;
+                srv.request.value = true;
+                if (arming_client_.call(srv) && srv.response.success) {
+                    ROS_INFO("无人机解锁成功");
+                    sub_state = 3;
+                    last_request = now;
+                } else {
+                    ROS_WARN("解锁失败，重试中...");
+                    last_request = now;
+                }
+            } else if (current_mav_state_.armed) {
+                // 已经解锁，直接进入爬升
+                sub_state = 3;
+                last_request = now;
+            }
+            break;
+
+        case 3: // 爬升至目标高度并稳定
+            if (fabs(current_z - target_z) < 0.2) {
+                // 到达高度后悬停稳定3秒
+                if ((now - last_request).toSec() > 3.0) {
+                    ROS_INFO("起飞完成，稳定悬停，进入穿越障碍阶段");
+                    current_state_ = PASS_OBSTACLES;
+                    nav_goal_sent_ = false;
+                    state_start_time_ = now;
+                    // 重置子状态机供下次起飞使用（若需）
+                    sub_state = 0;
+                    setpoint_count = 0;
+                }
+            } else {
+                last_request = now;  // 未到高度则重置计时
+            }
+            break;
     }
 
-    if (std::abs(local_odom_.pose.pose.position.z - (init_pos_z_ + cfg_.takeoff_height)) < 0.2) {
-        ROS_INFO("起飞完成，进入穿越障碍阶段");
-        current_state_ = PASS_OBSTACLES;
-        nav_goal_sent_ = false;
-        state_start_time_ = ros::Time::now();
+    // 如果当前是爬升阶段，可额外打印进度
+    if (sub_state == 3) {
+        ROS_INFO_THROTTLE(1.0, "爬升中... 当前高度: %.2f / %.2f", current_z, target_z);
     }
 }
 
@@ -992,6 +1074,7 @@ void MissionManager::run() {
 // 10. 主函数
 // ============================================================================
 int main(int argc, char **argv) {
+    setlocale(LC_ALL, "");
     ros::init(argc, argv, "mission_state_machine");
     ros::NodeHandle nh("~");
 
