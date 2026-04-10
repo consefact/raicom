@@ -1,4 +1,7 @@
 <launch>
-    <rosparam file="$(find main_control)/config/main_control.yaml" command="load"/>
+    <!-- 先加载参数到节点的私有命名空间 -->
+    <rosparam file="$(find main_control)/config/main_control.yaml" command="load" ns="main_control"/>
+    
+    <!-- 再启动节点 -->
     <node name="main_control" pkg="main_control" type="main_control" output="screen"/>
 </launch>
