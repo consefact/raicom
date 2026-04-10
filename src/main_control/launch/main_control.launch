@@ -4,5 +4,23 @@
     <node name="mission_state_machine" pkg="your_package" type="mission_state_machine_test" output="screen">
         <param name="enable_yolo" value="true" />
         <param name="hover_time"  value="2.0" />
+
+        <!-- 投放阶段调参 -->
+        <param name="drop_arrive_threshold" value="0.35" />
+        <param name="drop_detect_timeout" value="0.30" />
+        <param name="drop_align_hold_time" value="0.35" />
+        <param name="drop_release_max_horiz_speed" value="0.12" />
+        <param name="drop_release_max_vert_speed" value="0.06" />
+        <param name="drop_max_tilt" value="0.08" />
+
+        <!-- 经验像素偏置：先从 0 开始，实飞后慢慢调 -->
+        <param name="drop_camera_bias_x_px" value="0.0" />
+        <param name="drop_camera_bias_y_px" value="0.0" />
+        <param name="drop_release_bias_x_px" value="0.0" />
+        <param name="drop_release_bias_y_px" value="0.0" />
+
+        <param name="drop_fine_pixel_radius" value="35.0" />
+        <param name="drop_fine_vel_scale" value="0.45" />
+        <param name="drop_descend_distance" value="0.0" />
     </node>
 </launch>
