@@ -55,7 +55,8 @@ tmux send-keys -t $SESSION:1 "sleep 10; source $WS/devel/setup.zsh; roslaunch ma
 
 # 步骤 3：将右半边上下切分 (右下角)，启动 YOLO
 tmux split-window -v -t $SESSION:1
-tmux send-keys -t $SESSION:1 "sleep 16; conda run -n yolov11n --no-capture-output zsh -c 'export PYTHONPATH=~/cv_bridge_ws/devel/lib/python3/dist-packages:$PYTHONPATH && source $WS/devel/setup.zsh && roslaunch raicom_vision_laser raicom_vision_laser.launch'" C-m
+# tmux send-keys -t $SESSION:1 "sleep 16; conda run -n yolov11n --no-capture-output zsh -c 'export PYTHONPATH=~/cv_bridge_ws/devel/lib/python3/dist-packages:$PYTHONPATH && source $WS/devel/setup.zsh && roslaunch raicom_vision_laser raicom_vision_laser.launch'" C-m
+tmux send-keys -t $SESSION:1 "sleep 16; source $WS/devel/setup.zsh; roslaunch raicom_vision_laser raicom_ocr_laser.launch" C-m
 
 # 步骤 4：通过相对方向焦点回到最左侧，将左半边上下切分 (左下角)，启动状态监控 2
 tmux select-pane -L -t $SESSION:1
