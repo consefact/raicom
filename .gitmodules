@@ -1,6 +1,6 @@
 [submodule "src/pcl_detection2"]
 	path = src/pcl_detection2
-	url = git@github.com:RgerColdline/pcl_detection2.git
+	url = https://github.com/RgerColdline/pcl_detection2.git
 [submodule "src/uav_navigation"]
 	path = src/uav_navigation
 	url = https://github.com/HarryGit-HUST/uav_navigation

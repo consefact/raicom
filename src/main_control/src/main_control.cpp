@@ -828,7 +828,7 @@ void MissionManager::handleHoverRecognizeDrop() {
         current_setpoint_.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
         current_setpoint_.type_mask = 0b100111000111;
         current_setpoint_.velocity.x = current_setpoint_.velocity.y = 0.0f;
-        current_setpoint_.position.z = init_pos_z_ + cfg_.takeoff_height;
+        current_setpoint_.velocity.z = (target_z - local_odom_.pose.pose.position.z) * cfg_.p_z;
         current_setpoint_.yaw = init_yaw_;
     };
 
@@ -876,10 +876,10 @@ void MissionManager::handleHoverRecognizeDrop() {
     }
 
     current_setpoint_.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
-    current_setpoint_.type_mask = 0b100111100011;
+    current_setpoint_.type_mask = 0b100111000111;
     current_setpoint_.velocity.x = vel_y;       // 左右
     current_setpoint_.velocity.y = vel_x;      // 前后
-    current_setpoint_.position.z = init_pos_z_ + cfg_.takeoff_height;
+    current_setpoint_.velocity.z = (target_z - local_odom_.pose.pose.position.z) * cfg_.p_z;
     current_setpoint_.yaw = init_yaw_-1.57;
 
     ROS_INFO_THROTTLE(0.5,
