@@ -7,3 +7,6 @@
 [submodule "src/raicom_vision_laser"]
 	path = src/raicom_vision_laser
 	url = https://gitee.com/dunantedage1/raicom
+[submodule "src/arduino_ws"]
+	path = src/arduino_ws
+	url = https://github.com/ManganSakura/arduino_ws
